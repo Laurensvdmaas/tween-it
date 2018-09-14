@@ -1,7 +1,6 @@
-class Tween {
+export class Tween {
     private change = {};
     private defaultConfig = {
-        position: 0,
         delay: 0
     };
     private currentTime = 0;
@@ -9,25 +8,26 @@ class Tween {
     public position;
     pipeFn;
     raf;
+    progress;
     onUpdate;
     completeFn;
     private startTime = 0;
 
     constructor(private obj:Object[], public duration, private from:Object[], private to, public config) {
         this.config = Object.assign({}, this.defaultConfig, this.config);
-
         this.change = this.getChange();
-
     }
 
     private animate() {
         this.raf = requestAnimationFrame(this.animate.bind(this));
         this.currentTime = Date.now() - this.startTime;
-        this.loopProperties();
+        this.progress = this.currentTime / this.duration;
 
+        this.loopProperties();
         this.onUpdate(this.cleanObj());
 
-        if (this.currentTime > this.duration) {
+        if (this.currentTime >= this.duration) {
+            this.progress = 1;
             this.loopProperties();
 
             if (this.completeFn) {
@@ -41,21 +41,26 @@ class Tween {
     cleanObj() {
         let obj:any = this.obj;
 
-        if(this.pipeFn) {
+        if (this.pipeFn) {
             obj = JSON.parse(JSON.stringify(obj.map(this.pipeFn)));
         }
 
-        if(obj.length == 1) {
+        if (obj.length == 1) {
             obj = obj[0];
         }
 
         return obj;
     }
 
+    getValue() {
+        return this.cleanObj();
+    }
+
     loopProperties() {
         this.obj.forEach((obj, i) => {
-            Object.keys(this.from[i]).forEach((key) => {
-                obj[key] = this.config.ease(this.currentTime, this.from[i][key], this.change[i][key], this.duration);
+            Object.keys(this.from[i]).forEach((key, h) => {
+                
+                obj[key] = this.from[i][key] + this.change[i][key] * this.config.ease(this.progress);
             });
         });
     }
@@ -93,14 +98,13 @@ class Tween {
 
         return this;
     }
-
+    
 
     public play(callback:any = () => {
     }) {
         setTimeout(() => {
             this.startTime = Date.now();
             this.onUpdate = callback;
-
             this.animate();
         }, this.config.delay);
 

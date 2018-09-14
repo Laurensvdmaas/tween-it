@@ -2,9 +2,9 @@ import {easings} from "./easings";
 import {Tween} from "./tween";
 import {Timeline} from "./timeline";
 
-export class TweenIt {
+export class TweenIt { 
     private tweens = {};
-    private defaultConfig = {
+    private defaultConfig:any = {
         ease: easings.linear,
         delay: 0
     };
@@ -13,7 +13,7 @@ export class TweenIt {
         this.config = Object.assign({}, this.defaultConfig, this.config);
     }
 
-    public to(obj, duration, to, config = {}) {
+    public to(obj, duration, to, config = {}):Tween {
 
         if (!(obj instanceof Array)) {
             obj = [obj];
@@ -21,7 +21,7 @@ export class TweenIt {
 
         let from = this.getFrom(obj, to);
 
-
+        
         let tween = new Tween(obj, duration, from, to, Object.assign({}, this.config, config));
 
         this.tweens[this.generateUID()] = tween;
@@ -31,6 +31,7 @@ export class TweenIt {
 
     private getFrom(obj, to) {
         let from = [];
+
         obj.forEach((_obj) => {
             let x = {};
 
