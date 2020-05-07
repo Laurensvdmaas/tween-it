@@ -1,5 +1,5 @@
 export class Tween {
-    private change = {};
+    private change:any = [];
     private defaultConfig = {
         delay: 0
     };
@@ -10,43 +10,87 @@ export class Tween {
     raf;
     progress;
     onUpdate;
+    fromValues:any[] = [];
+    changeValues:any[] = [];
+    objKeys:any[] = [];
     completeFn;
+    resolve;
+    shadowObj = {};
     private startTime = 0;
 
-    constructor(private obj:Object[], public duration, private from:Object[], private to, public config) {
+    constructor(private obj, public duration, private from, private to, public config) {
         this.config = Object.assign({}, this.defaultConfig, this.config);
-        this.change = this.getChange();
+
+        this.change = this.getChange(from, to);
+        this.shadowObj = Object.assign({}, this.from);
+
+        // this.fromValues = this.buildTree(this.from, 1);
+        // this.changeValues = this.buildTree(this.change, 1);
+        // this.objKeys = this.buildTree(this.from, 0);
+    }
+
+    buildTree(x, i) {
+        return Object.entries(x).map((arr) => {
+            return typeof arr[1] === 'object' && arr[1] !== null ? this.buildTree(arr[1], i) : arr[i]
+        });
     }
 
     private animate() {
         this.raf = requestAnimationFrame(this.animate.bind(this));
         this.currentTime = Date.now() - this.startTime;
-        this.progress = this.currentTime / this.duration;
+        const progress = this.currentTime / this.duration;
+        this.progress = progress < 1 ? progress : 1;
 
-        this.loopProperties();
+        this.shadowObj = this.loopProperties(this.from, this.change);
+        
         this.onUpdate(this.cleanObj());
 
         if (this.currentTime >= this.duration) {
-            this.progress = 1;
-            this.loopProperties();
+            if (this.completeFn) this.completeFn();
 
-            if (this.completeFn) {
-                this.completeFn();
-            }
+            if(this.resolve) this.resolve();
 
-            cancelAnimationFrame(this.raf);
+            this.destroy();
         }
     }
 
+    loopProperties(from, change) {
+        let obj = {};
+
+        Object.keys(from).forEach((key, i) => {
+            if(key === "type" || key === "clean") obj[key] = from[key];
+            else if(typeof from[key] === 'object' && from[key] !== null ) {
+                obj[key] = this.loopProperties(from[key], change[key])
+            } else {
+                obj[key] = from[key] + change[key] * this.config.ease(this.progress)
+            }
+        });
+
+        return obj;
+    }
+
+    loopClean(obj) {
+        Object.keys(obj).forEach(key => {
+             if(obj[key].clean) {
+                 this.obj[key] = obj[key].clean(obj[key].value)
+             } else if(typeof obj[key] === 'object' && obj[key] !== null) {
+                 this.obj[key] = this.loopClean(obj[key])
+             } else {
+                this.obj[key] = obj[key];
+            }
+        });
+
+        return obj;
+    }
+
     cleanObj() {
-        let obj:any = this.obj;
+        let obj:any = this.shadowObj;
+
+        this.loopClean(obj);
+
 
         if (this.pipeFn) {
             obj = JSON.parse(JSON.stringify(obj.map(this.pipeFn)));
-        }
-
-        if (obj.length == 1) {
-            obj = obj[0];
         }
 
         return obj;
@@ -56,44 +100,44 @@ export class Tween {
         return this.cleanObj();
     }
 
-    loopProperties() {
-        this.obj.forEach((obj, i) => {
-            Object.keys(this.from[i]).forEach((key, h) => {
-                
-                obj[key] = this.from[i][key] + this.change[i][key] * this.config.ease(this.progress);
-            });
-        });
-    }
 
-    public setDelay(time) {
+    public setDelay(time: Number) {
         this.config.delay = time;
 
         return this;
     }
 
-    public pipe(pipe) {
+    public pipe(pipe: Function) {
         this.pipeFn = pipe;
 
         return this;
     }
 
-    private getChange() {
-        let change = [];
-
-        this.obj.forEach((_obj, i) => {
-            let obj = {};
-
-            Object.keys(this.from[i]).forEach((key) => {
-                obj[key] = this.to[key] - this.from[i][key];
-            });
-
-            change.push(obj);
+    toPromise() {
+        return new Promise((resolve, reject) => {
+            this.resolve = resolve;
         });
-
-        return change;
     }
 
-    public complete(fn) {
+    private getChange(from, to, debug = false) {
+        let x = {};
+
+        Object.keys(from).forEach((key:string) => {
+            if(typeof to[key] === "function" || typeof to[key] === "string") {
+                x[key] = from[key];
+            } else if(typeof to[key] === 'object' && to[key] !== null) {
+                x[key] = this.getChange(from[key], to[key]);
+            } else {
+                x[key] = to[key] - from[key];
+            }
+
+        });
+
+
+        return x;
+    }
+
+    public complete(fn: Function) {
         this.completeFn = fn;
 
         return this;
@@ -117,7 +161,7 @@ export class Tween {
     }
 
     public restart() {
-        Object.keys(this.from).forEach((key) => {
+        Object.keys(this.from).forEach((key: string) => {
             this.obj[key] = this.from[key];
             this.play();
         });
@@ -131,4 +175,6 @@ export class Tween {
 
         return this;
     }
+
+    destroy(){cancelAnimationFrame(this.raf)};
 }

@@ -1,9 +1,11 @@
 import {easings} from "./easings";
 import {Tween} from "./tween";
 import {Timeline} from "./timeline";
+import {utils} from "./utils";
 
 export class TweenIt { 
     private tweens = {};
+
     private defaultConfig:any = {
         ease: easings.linear,
         delay: 0
@@ -14,45 +16,36 @@ export class TweenIt {
     }
 
     public to(obj, duration, to, config = {}):Tween {
-
-        if (!(obj instanceof Array)) {
-            obj = [obj];
-        }
-
-        let from = this.getFrom(obj, to);
+        let from = this.getFrom(obj, to),
+            _to = this.getFrom(to, obj);
 
         
-        let tween = new Tween(obj, duration, from, to, Object.assign({}, this.config, config));
-
-        this.tweens[this.generateUID()] = tween;
-
-        return tween;
+        return new Tween(obj, duration, from, _to, Object.assign({}, this.config, config));
     }
 
     private getFrom(obj, to) {
-        let from = [];
+        let x = {};
 
-        obj.forEach((_obj) => {
-            let x = {};
+        Object.keys(to).forEach((key) => {
+            const value = obj[key];
 
-            Object.keys(to).forEach((key) => {
-                x[key] = (_obj[key] || 0);
-            });
 
-            from.push(x);
+            if(!isNaN(value)) x[key] = (value || 0);
+            if(typeof value === "string" && value[0] === "#") {
+                x[key] = {
+                    value: utils.hexToRgb(value),
+                    clean: (val) => {
+
+                        return utils.rgbToHex(parseInt(val.r), parseInt(val.g), parseInt(val.b));
+                    }
+                }
+            }
         });
 
-        return from;
+        return x;
     }
 
     public timeline(tweens:any[], config = {}):Timeline {
         return new Timeline(tweens, config);
     }
-
-    private generateUID = () => {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            let r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    };
 }

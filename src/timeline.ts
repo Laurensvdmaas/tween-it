@@ -5,8 +5,8 @@ export class Timeline {
     public defaultConfig = {
         delay: 0
     };
-    onUpdateFn;
-    pipeFn;
+    onUpdateFn:any;
+    pipeFn:any;
 
     public currentTime = 0;
 
@@ -14,7 +14,7 @@ export class Timeline {
         this.config = Object.assign({}, this.defaultConfig, config);
     }
 
-    public play(fn) {
+    public play(fn?: Function) {
         this.onUpdateFn = fn;
 
         setTimeout(this.animate.bind(this), this.config.delay);
@@ -22,7 +22,7 @@ export class Timeline {
         return this;
     }
 
-    public pipe(fn) {
+    public pipe(fn?: Function) {
 
         this.pipeFn = fn;
 
@@ -45,11 +45,6 @@ export class Timeline {
 
         this.tweens.forEach((tween:Tween) => {
             let position = (typeof tween.config.position != "undefined" ? tween.config.position : time);
-
-            console.log(tween.config.position);
-            console.log(typeof tween.config.position != "undefined");
-
-            console.log(position);
 
             tween.setDelay(position).play(this.onUpdate.bind(this));
 
